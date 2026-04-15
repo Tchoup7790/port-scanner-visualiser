@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"time"
@@ -18,7 +19,9 @@ func scanPort(host string, port int) bool {
 }
 
 func main() {
-	host := "scanme.nmap.org"
+	hostPtr := flag.String("host", "scanme.nmap.org", "a string")
+	flag.Parse()
+	host := *hostPtr
 
 	for port := 1; port <= 1024; port++ {
 		fmt.Printf("Scanning port %d...\r", port)
