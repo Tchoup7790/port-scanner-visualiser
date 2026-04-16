@@ -9,6 +9,7 @@ import (
 	"port-scanner-visualiser/scanner"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type model struct {
@@ -67,15 +68,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func header(host string) string {
+	return titleStyle.Render("Port Scanner") + "\n" + progressStyle.Render("Target: "+host)
+}
+
 func (m model) View() string {
-	progress := fmt.Sprintf("Scanning... %d/%d\n\n", m.scanned, m.totalPorts)
+	progress := progressStyle.Render(
+		fmt.Sprintf("Scanning %s... %d/%d", m.host, m.scanned, m.totalPorts),
+	)
 
 	if len(m.openPorts) == 0 {
-		return progress + "No open ports yet...\n'q' to quit"
+		content := emptyStyle.Render("No open ports yet...")
+		box := boxStyle.Render(content)
+		return lipgloss.JoinVertical(lipgloss.Left, progress, box, "\n'q' to quit")
 	}
 
-	var result strings.Builder
-	result.WriteString("Open ports:\n")
+	var b strings.Builder
+	b.WriteString("Open ports:\n")
 
 	keys := make([]int, 0, len(m.openPorts))
 	for k := range m.openPorts {
@@ -84,10 +93,18 @@ func (m model) View() string {
 	sort.Ints(keys)
 
 	for _, k := range keys {
-		fmt.Fprintf(&result, " - %d/tcp (%s)\n", k, m.openPorts[k])
+		fmt.Fprintf(&b, "→ %d/tcp (%s)\n", k, m.openPorts[k])
 	}
 
-	return progress + result.String() + "\n'q' to quit"
+	openPortsBox := boxStyle.Render(openPortStyle.Render(b.String()))
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		header(m.host),
+		progress,
+		openPortsBox,
+		emptyStyle.Render("\n'q' to quit"),
+	)
 }
 
 func scanPortCmd(host string, port int) tea.Cmd {
