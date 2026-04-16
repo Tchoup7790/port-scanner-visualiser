@@ -1,41 +1,22 @@
 package main
 
 import (
-	"sync"
+	"fmt"
+	"os"
 
 	"port-scanner-visualiser/config"
-	"port-scanner-visualiser/scanner"
 	"port-scanner-visualiser/ui"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
 	host := config.GetFlags()
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 100)
+	p := tea.NewProgram(ui.InitialModel(host, 1024))
 
-	var mu sync.Mutex
-
-	openPortsMap := map[int]string{}
-
-	for port := 1; port <= 1024; port++ {
-		wg.Add(1)
-		sem <- struct{}{}
-
-		go func(p int) {
-			defer wg.Done()
-			defer func() { <-sem }()
-
-			isOpen, protocole := scanner.ScanPort(host, p)
-			if isOpen {
-				mu.Lock()
-				openPortsMap[p] = protocole
-				mu.Unlock()
-			}
-		}(port)
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
 	}
-
-	wg.Wait()
-
-	ui.PrintResult(openPortsMap)
 }
