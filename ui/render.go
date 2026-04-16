@@ -4,6 +4,7 @@ package ui
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"port-scanner-visualiser/scanner"
 
