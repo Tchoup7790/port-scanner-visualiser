@@ -28,7 +28,7 @@ func InitialModel(host string, totalPorts int) model {
 	return model{
 		host:        host,
 		totalPorts:  totalPorts,
-		currentPort: 1,
+		currentPort: 101,
 		scanned:     0,
 		openPorts:   make(map[int]string),
 	}
@@ -36,12 +36,9 @@ func InitialModel(host string, totalPorts int) model {
 
 func (m model) Init() tea.Cmd {
 	cmds := make([]tea.Cmd, 100)
-
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		cmds[i] = scanPortCmd(m.host, i+1)
-		m.currentPort++
 	}
-
 	return tea.Batch(cmds...)
 }
 
@@ -56,9 +53,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.isOpen {
 			m.openPorts[msg.port] = msg.protocole
 		}
-		m.currentPort++
 		if m.currentPort <= m.totalPorts {
-			return m, scanPortCmd(m.host, m.currentPort)
+			cmd := scanPortCmd(m.host, m.currentPort)
+			m.currentPort++
+			return m, cmd
 		}
 		if m.scanned >= m.totalPorts {
 			return m, tea.Quit
@@ -69,13 +67,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	progress := fmt.Sprintf("Scanning...%d/%d", m.scanned, m.totalPorts)
-	totalPorts := printResult(m.openPorts)
+	progress := fmt.Sprintf("Scanning... %d/%d\n\n", m.scanned, m.totalPorts)
 
-	if m.scanned > m.totalPorts {
-		return progress
+	if len(m.openPorts) == 0 {
+		return progress + "No open ports yet...\n'q' to quit"
 	}
-	return totalPorts
+
+	var result strings.Builder
+	result.WriteString("Open ports:\n")
+
+	keys := make([]int, 0, len(m.openPorts))
+	for k := range m.openPorts {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+
+	for _, k := range keys {
+		fmt.Fprintf(&result, " - %d/tcp (%s)\n", k, m.openPorts[k])
+	}
+
+	return progress + result.String() + "\n'q' to quit"
 }
 
 func scanPortCmd(host string, port int) tea.Cmd {
@@ -83,24 +94,4 @@ func scanPortCmd(host string, port int) tea.Cmd {
 		isOpen, protocole := scanner.ScanPort(host, port)
 		return PortScannedMsg{port, protocole, isOpen}
 	}
-}
-
-func printResult(portsMap map[int]string) [][]string {
-	keys := make([]int, 0, len(portsMap))
-	for k := range portsMap {
-		keys = append(keys, k)
-	}
-
-	sort.Ints(keys)
-
-	result := make([][]string, 0, len(keys))
-
-	for _, k := range keys {
-		result = append(result, []string{
-			fmt.Sprintf("%d", k),
-			portsMap[k],
-		})
-	}
-
-	return result
 }
