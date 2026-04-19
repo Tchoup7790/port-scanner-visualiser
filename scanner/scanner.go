@@ -11,7 +11,7 @@ import (
 
 func ScanPort(host string, port int) (bool, string) {
 	dialer := &net.Dialer{
-		Timeout: 1 * time.Second,
+		Timeout: 300 * time.Millisecond,
 	}
 
 	address := net.JoinHostPort(host, fmt.Sprintf("%d", port))
@@ -24,13 +24,13 @@ func ScanPort(host string, port int) (bool, string) {
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
-		conn, err = net.DialTimeout("tcp", address, 1*time.Second)
+		conn, err = net.DialTimeout("tcp", address, 300*time.Millisecond)
 	}
 	if err != nil {
 		return false, ""
 	}
 
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_ = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 
 	buf := make([]byte, 1024)
 	n, _ := conn.Read(buf)
@@ -40,7 +40,7 @@ func ScanPort(host string, port int) (bool, string) {
 	if protocole == "" {
 		_, _ = conn.Write([]byte("HEAD / HTTP/1.0\r\nHost: " + host + "\r\n\r\n"))
 
-		_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+		_ = conn.SetReadDeadline(time.Now().Add(1 * time.Second))
 
 		buf := make([]byte, 1024)
 		n, _ := conn.Read(buf)
@@ -59,5 +59,14 @@ func ScanPort(host string, port int) (bool, string) {
 
 	_ = conn.Close()
 
-	return true, string(protocole)
+	return true, cleanBanner(string(protocole))
+}
+
+func cleanBanner(s string) string {
+	for _, c := range s {
+		if c > 126 || c < 32 {
+			return "unknown"
+		}
+	}
+	return strings.TrimSpace(s)
 }

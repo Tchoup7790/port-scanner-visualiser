@@ -14,10 +14,13 @@ import (
 
 type model struct {
 	host        string
-	totalPorts  int
+	startPort   int
+	endPort     int
+	concurrency int
 	scanned     int
 	currentPort int
 	openPorts   map[int]string
+	done        bool
 }
 
 type PortScannedMsg struct {
@@ -26,20 +29,27 @@ type PortScannedMsg struct {
 	isOpen    bool
 }
 
-func InitialModel(host string, totalPorts int) model {
+func InitialModel(host string, start int, end int, concurrency int) model {
 	return model{
 		host:        host,
-		totalPorts:  totalPorts,
-		currentPort: 101,
+		startPort:   start,
+		endPort:     end,
+		concurrency: concurrency,
+		currentPort: start + concurrency,
 		scanned:     0,
 		openPorts:   make(map[int]string),
+		done:        false,
 	}
 }
 
+func (m model) totalPorts() int {
+	return m.endPort - m.startPort + 1
+}
+
 func (m model) Init() tea.Cmd {
-	cmds := make([]tea.Cmd, 100)
-	for i := range 100 {
-		cmds[i] = scanPortCmd(m.host, i+1)
+	cmds := make([]tea.Cmd, m.concurrency)
+	for i := range m.concurrency {
+		cmds[i] = scanPortCmd(m.host, m.startPort+i)
 	}
 	return tea.Batch(cmds...)
 }
@@ -55,37 +65,56 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.isOpen {
 			m.openPorts[msg.port] = msg.protocole
 		}
-		if m.currentPort <= m.totalPorts {
+		if m.currentPort <= m.endPort {
 			cmd := scanPortCmd(m.host, m.currentPort)
 			m.currentPort++
 			return m, cmd
 		}
-		if m.scanned >= m.totalPorts {
+		if m.scanned >= m.totalPorts() {
+			m.done = true
 			return m, tea.Quit
 		}
 	}
-
 	return m, nil
 }
 
-func header(host string) string {
-	return titleStyle.Render("Port Scanner") + "\n" + progressStyle.Render("Target: "+host)
+func header(host string, openCount int) string {
+	target := progressStyle.Render("Target: " + host)
+	open := openPortStyle.Render(fmt.Sprintf("Open: %d", openCount))
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("Port Scanner"),
+		lipgloss.JoinHorizontal(lipgloss.Left, target, "  |  ", open),
+	)
 }
 
 func (m model) View() string {
-	progress := progressStyle.Render(
-		fmt.Sprintf("Scanning %s... %d/%d", m.host, m.scanned, m.totalPorts),
-	)
+	percent := float64(m.scanned) / float64(m.totalPorts())
+	filled := int(percent * 40)
+
+	barStyle := progressStyle
+	if m.done {
+		barStyle = doneStyle
+	}
+
+	bar := strings.Repeat("█", filled) + strings.Repeat("░", 40-filled)
+	status := "Scanning..."
+	if m.done {
+		status = "Done ✓"
+	}
+	progress := barStyle.Render(fmt.Sprintf("%s [%s] %d%%", status, bar, int(percent*100)))
 
 	if len(m.openPorts) == 0 {
-		content := emptyStyle.Render("No open ports yet...")
-		box := boxStyle.Render(content)
-		return lipgloss.JoinVertical(lipgloss.Left, progress, box, "\n'q' to quit")
+		box := boxStyle.Render(emptyStyle.Render("No open ports yet..."))
+		return lipgloss.JoinVertical(lipgloss.Left,
+			header(m.host, 0),
+			progress,
+			box,
+			emptyStyle.Render("'q' to quit"),
+		)
 	}
 
 	var b strings.Builder
-	b.WriteString("Open ports:\n")
-
 	keys := make([]int, 0, len(m.openPorts))
 	for k := range m.openPorts {
 		keys = append(keys, k)
@@ -100,10 +129,10 @@ func (m model) View() string {
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		header(m.host),
+		header(m.host, len(m.openPorts)),
 		progress,
 		openPortsBox,
-		emptyStyle.Render("\n'q' to quit"),
+		emptyStyle.Render("'q' to quit"),
 	)
 }
 

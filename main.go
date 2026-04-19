@@ -11,9 +11,9 @@ import (
 )
 
 func main() {
-	host := config.GetFlags()
+	host, start, end, concurrency := config.GetFlags()
 
-	p := tea.NewProgram(ui.InitialModel(host, 1024))
+	p := tea.NewProgram(ui.InitialModel(host, start, end, concurrency))
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)

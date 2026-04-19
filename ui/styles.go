@@ -6,12 +6,15 @@ import "github.com/charmbracelet/lipgloss"
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#FAFAFA")).
-			Background(lipgloss.Color("#0000FF")).
+			Foreground(lipgloss.Color("15")).
+			Background(lipgloss.Color("4")).
 			Padding(0, 1)
 
 	progressStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#A1A1A1"))
+			Foreground(lipgloss.Color("4"))
+
+	doneStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("2"))
 
 	boxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -19,8 +22,8 @@ var (
 			MarginTop(1)
 
 	openPortStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#00FF00"))
+			Foreground(lipgloss.Color("2"))
 
 	emptyStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#666666"))
+			Foreground(lipgloss.Color("8"))
 )
